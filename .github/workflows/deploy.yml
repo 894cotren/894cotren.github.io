@@ -58,6 +58,11 @@ jobs:
           pnpm build || (echo "Build failed, showing error:" && exit 1)
           echo "=== Build completed ==="
           ls -la dist/ || echo "Dist directory not found"
+      
+      - name: Create .nojekyll file
+        run: |
+          touch dist/.nojekyll
+          echo "Created .nojekyll to disable Jekyll processing"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -68,13 +73,34 @@ jobs:
   deploy-github:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/download-artifact@v4
-        with: { name: dist-files, path: ./dist }
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: ./dist }
-      - id: deployment
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: ./dist
+      
+      - name: Verify dist contents
+        run: |
+          echo "=== Dist directory contents ==="
+          ls -la dist/ || echo "Dist not found"
+          echo "=== Checking for .nojekyll ==="
+          ls -la dist/.nojekyll || echo ".nojekyll not found"
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
