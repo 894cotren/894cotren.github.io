@@ -20,13 +20,23 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.DISPATCH_TOKEN }}
           submodules: recursive
           fetch-depth: 0
 
       - name: Force Update Content Submodule
         run: |
           git submodule update --remote --merge
+
+      - name: Debug - List Files
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Files in root ==="
+          ls -la
+          echo "=== Content submodule ==="
+          ls -la content/ || echo "Content directory not found"
+          echo "=== Package files ==="
+          ls -la package.json pnpm-lock.yaml 2>&1 || echo "Some files missing"
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -39,10 +49,15 @@ jobs:
           version: 10.22.0
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
 
       - name: Build Site
-        run: pnpm build
+        run: |
+          echo "=== Starting build ==="
+          pnpm build || (echo "Build failed, showing error:" && exit 1)
+          echo "=== Build completed ==="
+          ls -la dist/ || echo "Dist directory not found"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
