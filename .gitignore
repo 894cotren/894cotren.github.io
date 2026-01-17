@@ -1,20 +1,46 @@
-### costom ###
+# build output
+dist/
 
+# generated types
+.astro/
 
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# dependencies
+node_modules/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-### IntelliJ IDEA ###
+# environment variables
+.env
+.env.production
+
+# content repository (independent mode)
+#/content/
+*.backup
+
+# Large zip files
+*.zip
+
+# macOS-specific files
+.DS_Store
+
+.vercel
+
+package-lock.json
+bun.lockb
+yarn.lock
+
+# ide
 .idea
+*.iml
+
+cache/
+fuwari/
+src/data/myself.ts
+src/pages/myself.astro
+
+# Bangumi generated data
+src/data/bangumi-data.json
