@@ -1,10 +1,10 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub & Cloudflare
 
 on:
   push:
     branches: [ main ]
   repository_dispatch:
-    types: [ content-updated ]
+    types: [ content-updated ] # 👈 监听来自内容仓库的信号
   workflow_dispatch:
 
 permissions:
@@ -17,26 +17,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1. 检出代码 (关键：带权限、拉取子模块)
       - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.DISPATCH_TOKEN }} # ⚠️ 必须用 PAT，否则拉不到私有库
           submodules: recursive
           fetch-depth: 0
 
+      # 2. 强制同步最新内容 (关键：解决“不更新”问题)
       - name: Force Update Content Submodule
         run: |
           git submodule update --remote --merge
-
-      - name: Debug - List Files
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Files in root ==="
-          ls -la
-          echo "=== Content submodule ==="
-          ls -la content/ || echo "Content directory not found"
-          echo "=== Package files ==="
-          ls -la package.json pnpm-lock.yaml 2>&1 || echo "Some files missing"
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -46,62 +38,34 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.22.0
+          version: 9
 
       - name: Install Dependencies
-        run: |
-          pnpm install --frozen-lockfile || pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Site
-        run: |
-          echo "=== Starting build ==="
-          pnpm build || (echo "Build failed, showing error:" && exit 1)
-          echo "=== Build completed ==="
-          ls -la dist/ || echo "Dist directory not found"
-      
-      - name: Create .nojekyll file
-        run: |
-          touch dist/.nojekyll
-          echo "Created .nojekyll in dist/ to disable Jekyll processing"
-          echo "This file tells GitHub Pages to skip Jekyll processing"
+        run: pnpm build
 
+      # 3. 上传构建产物 (dist)
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist-files
           path: ./dist
 
+  # --- 部署任务区域 ---
+
+  # 部署到 GitHub Pages
   deploy-github:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-files
-          path: ./dist
-      
-      - name: Verify dist contents
-        run: |
-          echo "=== Dist directory contents ==="
-          ls -la dist/ || echo "Dist not found"
-          echo "=== Checking for .nojekyll ==="
-          ls -la dist/.nojekyll || echo ".nojekyll not found"
-      
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-      
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - uses: actions/download-artifact@v4
+        with: { name: dist-files, path: ./dist }
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: ./dist }
+      - id: deployment
         uses: actions/deploy-pages@v4
